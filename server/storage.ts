@@ -87,6 +87,8 @@ export class MemStorage implements IStorage {
     const generatedImage: GeneratedImage = {
       ...image,
       id,
+      packId: image.packId ?? null,
+      enhancedPrompt: image.enhancedPrompt ?? null,
       createdAt: new Date(),
     };
     this.generatedImages.set(id, generatedImage);

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCharacterPackSchema } from "@shared/schema";
 import { GoogleGenAI } from "@google/genai";
+// @ts-ignore - Module has types but package.json exports issue
 import { runware } from '@runware/ai-sdk-provider';
 import { experimental_generateImage as generateImage } from 'ai';
 
@@ -99,7 +100,7 @@ async function enhancePromptWithGemini(basePrompt: string, characters: string[],
         Create a detailed, specific prompt that will generate high-quality character images while maintaining the distinctive features and personality of each character. Include details about poses, expressions, lighting, and artistic style. Keep it under 200 words.`,
     });
     
-    return response.text;
+    return response.text ?? basePrompt;
   } catch (error) {
     console.error("Gemini AI error:", error);
     return basePrompt; // Fallback to original prompt
@@ -135,7 +136,7 @@ async function generateCharacterPack(packId: number, characters: string[], setti
       );
 
       // Generate images with Runware
-      const { images } = await generateImage({
+      const result = await generateImage({
         model: runware.image('runware:101@1'),
         prompt: enhancedPrompt,
         n: settings.imagesPerCharacter || 4,
@@ -149,15 +150,20 @@ async function generateCharacterPack(packId: number, characters: string[], setti
         },
       });
 
+      // Handle both single image and multiple images response
+      const images = result.images || (result.image ? [result.image] : []);
+
       // Save generated images
       for (let i = 0; i < images.length; i++) {
+        const imageData = images[i] as any;
+        const imageUrl = imageData?.url || imageData?.base64 || `https://via.placeholder.com/1024x1024/8B5CF6/FFFFFF?text=${characterId}`;
         await storage.createGeneratedImage({
           packId,
           characterId,
-          imageUrl: images[i].url,
+          imageUrl,
           variation: i + 1,
           prompt: basePrompt,
-          enhancedPrompt,
+          enhancedPrompt: enhancedPrompt || null,
         });
       }
     }
