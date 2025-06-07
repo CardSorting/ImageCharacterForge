@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +55,12 @@ export default function Home() {
   
   const [basePrompt, setBasePrompt] = useState('Generate multiple dynamic poses and expressions of the selected characters in their iconic styles');
   const [enhancedPrompt, setEnhancedPrompt] = useState('');
+
+  // Query for user's character packs
+  const { data: userPacks = [], isLoading: isLoadingPacks } = useQuery({
+    queryKey: ['/api/character-packs'],
+    enabled: !!user,
+  });
 
   // Mutations
   const enhancePromptMutation = useMutation({
@@ -192,15 +198,23 @@ export default function Home() {
               {user && (
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.profileImageUrl || undefined} />
+                    <AvatarImage src={(user as any).profileImageUrl || undefined} />
                     <AvatarFallback>
-                      {user.firstName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                      {(user as any).firstName?.charAt(0) || (user as any).email?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden sm:block text-sm">
-                    <p className="text-white">{user.firstName || 'User'}</p>
-                    <p className="text-slate-400 text-xs">{user.email}</p>
+                    <p className="text-white">{(user as any).firstName || 'User'}</p>
+                    <p className="text-slate-400 text-xs">{(user as any).email}</p>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setViewState('gallery')}
+                    className="border-slate-600 hover:bg-slate-700"
+                  >
+                    Gallery
+                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -471,6 +485,114 @@ export default function Home() {
             packId={currentPackId}
             onGenerateNew={handleGenerateNew}
           />
+        )}
+
+        {/* User Gallery */}
+        {viewState === 'gallery' && (
+          <section>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-3xl font-bold text-white">Your Character Packs</h2>
+                <p className="text-slate-400 mt-2">Browse and manage your generated character collections</p>
+              </div>
+              <Button 
+                onClick={() => setViewState('selection')}
+                className="bg-primary hover:bg-primary/80"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Create New Pack
+              </Button>
+            </div>
+
+            {isLoadingPacks ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="bg-slate-800 border-slate-700 animate-pulse">
+                    <CardHeader>
+                      <div className="h-4 bg-slate-600 rounded w-3/4"></div>
+                      <div className="h-3 bg-slate-600 rounded w-1/2"></div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-32 bg-slate-600 rounded"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : userPacks.length === 0 ? (
+              <Card className="bg-slate-800 border-slate-700 text-center py-12">
+                <CardContent>
+                  <Image className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No Character Packs Yet</h3>
+                  <p className="text-slate-400 mb-6">Create your first AI-generated character pack to get started!</p>
+                  <Button 
+                    onClick={() => setViewState('selection')}
+                    className="bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Generate First Pack
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userPacks.map((pack: any) => (
+                  <Card key={pack.id} className="bg-slate-800 border-slate-700 hover:border-slate-600 transition-colors">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-white truncate">{pack.name}</CardTitle>
+                        <Badge 
+                          variant={pack.status === 'completed' ? 'default' : pack.status === 'generating' ? 'secondary' : 'destructive'}
+                          className="capitalize"
+                        >
+                          {pack.status}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-slate-400">
+                        {pack.characters.length} characters • {pack.settings?.imagesPerCharacter || 4} images each
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {pack.characters.slice(0, 3).map((char: string) => (
+                          <Badge key={char} variant="outline" className="text-xs border-slate-600 text-slate-300">
+                            {char}
+                          </Badge>
+                        ))}
+                        {pack.characters.length > 3 && (
+                          <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                            +{pack.characters.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-slate-400">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDistanceToNow(new Date(pack.createdAt))} ago</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{pack.status}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button 
+                        onClick={() => {
+                          setCurrentPackId(pack.id);
+                          setViewState('results');
+                        }}
+                        variant="outline"
+                        className="w-full border-slate-600 hover:bg-slate-700"
+                        disabled={pack.status !== 'completed'}
+                      >
+                        {pack.status === 'completed' ? 'View Results' : 'Processing...'}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </main>
 
