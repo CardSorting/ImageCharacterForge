@@ -288,25 +288,23 @@ async function generateCharacterPack(packId: number, characters: string[], setti
         }
       }
       
-      // Check warnings for imageURL (Runware specific)
+      // Check warnings for imageURL (Runware specific response format)
       if (result.warnings && Array.isArray(result.warnings)) {
         for (const warning of result.warnings) {
-          if (warning && typeof warning === 'object' && 'message' in warning) {
-            try {
-              const message = (warning as any).message;
-              if (typeof message === 'string' && message.includes('Response data:')) {
-                const responseData = JSON.parse(message.replace('Response data: ', ''));
-                if (Array.isArray(responseData)) {
-                  for (const item of responseData) {
-                    if (item && typeof item === 'object' && 'imageURL' in item) {
-                      imageUrls.push(item.imageURL as string);
-                    }
+          try {
+            const warningObj = warning as any;
+            if (warningObj.message && typeof warningObj.message === 'string' && warningObj.message.includes('Response data:')) {
+              const responseData = JSON.parse(warningObj.message.replace('Response data: ', ''));
+              if (Array.isArray(responseData)) {
+                for (const item of responseData) {
+                  if (item && typeof item === 'object' && item.imageURL) {
+                    imageUrls.push(item.imageURL);
                   }
                 }
               }
-            } catch (e) {
-              console.log('Failed to parse warning message');
             }
+          } catch (e) {
+            console.log('Failed to parse warning message');
           }
         }
       }
