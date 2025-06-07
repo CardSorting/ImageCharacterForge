@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCharacterPackSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { GoogleGenAI } from "@google/genai";
 // @ts-ignore - Module has types but package.json exports issue
 import { runware } from '@runware/ai-sdk-provider';
@@ -13,23 +14,20 @@ const ai = new GoogleGenAI({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Create default user if none exists
-  const initializeDefaultUser = async () => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const existingUser = await storage.getUser(1);
-      if (!existingUser) {
-        await storage.createUser({
-          username: "demo_user",
-          password: "demo_password"
-        });
-        console.log("Created default user");
-      }
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
     } catch (error) {
-      console.error("Error initializing default user:", error);
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
-  };
-  
-  await initializeDefaultUser();
+  });
   
   // Get character pack history
   app.get("/api/character-packs", async (req, res) => {
