@@ -166,7 +166,7 @@ IMPORTANT: Return only the JSON object, no other text or formatting.`,
       // Validate and clean the parsed data
       const title = typeof metadata.title === 'string' ? metadata.title.substring(0, 60) : `${characterId} - Variation ${variation}`;
       const description = typeof metadata.description === 'string' ? metadata.description : `A ${style} style artwork featuring ${characterId} in a dynamic pose.`;
-      const tags = Array.isArray(metadata.tags) ? metadata.tags.filter(tag => typeof tag === 'string') : [characterId, style, 'character', 'ai-generated'];
+      const tags = Array.isArray(metadata.tags) ? metadata.tags.filter((tag: any) => typeof tag === 'string') : [characterId, style, 'character', 'ai-generated'];
       
       return { title, description, tags };
       

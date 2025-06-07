@@ -1,4 +1,6 @@
 import { characterPacks, generatedImages, users, type User, type InsertUser, type CharacterPack, type InsertCharacterPack, type GeneratedImage, type InsertGeneratedImage } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -14,98 +16,76 @@ export interface IStorage {
   getGeneratedImagesByPack(packId: number): Promise<GeneratedImage[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private characterPacks: Map<number, CharacterPack>;
-  private generatedImages: Map<number, GeneratedImage>;
-  private currentUserId: number;
-  private currentPackId: number;
-  private currentImageId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.characterPacks = new Map();
-    this.generatedImages = new Map();
-    this.currentUserId = 1;
-    this.currentPackId = 1;
-    this.currentImageId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async createCharacterPack(pack: InsertCharacterPack & { userId: number }): Promise<CharacterPack> {
-    const id = this.currentPackId++;
-    const characterPack: CharacterPack = {
-      ...pack,
-      id,
-      status: "pending",
-      createdAt: new Date(),
-      completedAt: null,
-    };
-    this.characterPacks.set(id, characterPack);
+    const [characterPack] = await db
+      .insert(characterPacks)
+      .values({
+        ...pack,
+        status: "pending",
+      })
+      .returning();
     return characterPack;
   }
 
   async getCharacterPack(id: number): Promise<CharacterPack | undefined> {
-    return this.characterPacks.get(id);
+    const [pack] = await db.select().from(characterPacks).where(eq(characterPacks.id, id));
+    return pack || undefined;
   }
 
   async getCharacterPacksByUser(userId: number): Promise<CharacterPack[]> {
-    return Array.from(this.characterPacks.values()).filter(
-      (pack) => pack.userId === userId,
-    );
+    return await db.select().from(characterPacks).where(eq(characterPacks.userId, userId));
   }
 
   async updateCharacterPackStatus(id: number, status: string, completedAt?: Date): Promise<void> {
-    const pack = this.characterPacks.get(id);
-    if (pack) {
-      pack.status = status;
-      if (completedAt) {
-        pack.completedAt = completedAt;
-      }
-      this.characterPacks.set(id, pack);
-    }
+    await db
+      .update(characterPacks)
+      .set({ 
+        status, 
+        completedAt: completedAt || null 
+      })
+      .where(eq(characterPacks.id, id));
   }
 
   async createGeneratedImage(image: InsertGeneratedImage): Promise<GeneratedImage> {
-    const id = this.currentImageId++;
-    const generatedImage: GeneratedImage = {
-      id,
-      packId: image.packId ?? null,
-      characterId: image.characterId,
-      imageUrl: image.imageUrl,
-      variation: image.variation,
-      prompt: image.prompt,
-      enhancedPrompt: image.enhancedPrompt ?? null,
-      title: image.title ?? null,
-      description: image.description ?? null,
-      tags: image.tags ?? null,
-      createdAt: new Date(),
-    };
-    this.generatedImages.set(id, generatedImage);
+    const [generatedImage] = await db
+      .insert(generatedImages)
+      .values({
+        packId: image.packId ?? null,
+        characterId: image.characterId,
+        imageUrl: image.imageUrl,
+        variation: image.variation,
+        prompt: image.prompt,
+        enhancedPrompt: image.enhancedPrompt ?? null,
+        title: image.title ?? null,
+        description: image.description ?? null,
+        tags: image.tags ?? null,
+      })
+      .returning();
     return generatedImage;
   }
 
   async getGeneratedImagesByPack(packId: number): Promise<GeneratedImage[]> {
-    return Array.from(this.generatedImages.values()).filter(
-      (image) => image.packId === packId,
-    );
+    return await db.select().from(generatedImages).where(eq(generatedImages.packId, packId));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
