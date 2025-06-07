@@ -13,6 +13,24 @@ const ai = new GoogleGenAI({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Create default user if none exists
+  const initializeDefaultUser = async () => {
+    try {
+      const existingUser = await storage.getUser(1);
+      if (!existingUser) {
+        await storage.createUser({
+          username: "demo_user",
+          password: "demo_password"
+        });
+        console.log("Created default user");
+      }
+    } catch (error) {
+      console.error("Error initializing default user:", error);
+    }
+  };
+  
+  await initializeDefaultUser();
+  
   // Get character pack history
   app.get("/api/character-packs", async (req, res) => {
     try {
@@ -176,7 +194,7 @@ IMPORTANT: Return only the JSON object, no other text or formatting.`,
       // Regex-based extraction as fallback
       const titleMatch = metadataText.match(/"title":\s*"([^"]*?)"/i);
       const descMatch = metadataText.match(/"description":\s*"([^"]*?)"/i);
-      const tagsSection = metadataText.match(/"tags":\s*\[(.*?)\]/si);
+      const tagsSection = metadataText.match(/"tags":\s*\[([\s\S]*?)\]/);
       
       let extractedTags = [characterId, style, 'character', 'ai-generated'];
       if (tagsSection) {
