@@ -28,9 +28,11 @@ export default function GenerationProgress({
   useEffect(() => {
     // Simulate realistic progress
     const stages = [
-      { stage: 'Enhancing prompts with Gemini AI...', duration: 2000, percentage: 15 },
-      { stage: 'Connecting to Runware API...', duration: 1000, percentage: 25 },
-      { stage: 'Generating character variations...', duration: 5000, percentage: 90 },
+      { stage: 'Enhancing prompts with Gemini AI...', duration: 2000, percentage: 10 },
+      { stage: 'Connecting to Runware API...', duration: 1000, percentage: 20 },
+      { stage: 'Generating character variations...', duration: 4000, percentage: 70 },
+      { stage: 'Generating titles and descriptions...', duration: 2000, percentage: 85 },
+      { stage: 'Creating metadata and tags...', duration: 1000, percentage: 95 },
       { stage: 'Finalizing character pack...', duration: 1000, percentage: 100 },
     ];
 
