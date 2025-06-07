@@ -27,6 +27,9 @@ export const generatedImages = pgTable("generated_images", {
   variation: integer("variation").notNull(),
   prompt: text("prompt").notNull(),
   enhancedPrompt: text("enhanced_prompt"),
+  title: text("title"),
+  description: text("description"),
+  tags: jsonb("tags"), // Array of tags
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -48,6 +51,9 @@ export const insertGeneratedImageSchema = createInsertSchema(generatedImages).pi
   variation: true,
   prompt: true,
   enhancedPrompt: true,
+  title: true,
+  description: true,
+  tags: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

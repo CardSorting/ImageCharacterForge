@@ -107,6 +107,63 @@ async function enhancePromptWithGemini(basePrompt: string, characters: string[],
   }
 }
 
+// Generate image metadata using Gemini AI
+async function generateImageMetadata(characterId: string, prompt: string, variation: number, style: string): Promise<{
+  title: string;
+  description: string;
+  tags: string[];
+}> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: `Generate metadata for an AI-generated character image with the following details:
+
+Character: ${characterId}
+Prompt: ${prompt}
+Style: ${style}
+Variation: ${variation}
+
+Please provide a JSON response with:
+1. "title": A compelling, descriptive title (max 60 characters)
+2. "description": A detailed description of the image (100-150 words)
+3. "tags": An array of 8-12 relevant tags for categorization and search
+
+The title should be engaging and describe the character's pose, expression, or action.
+The description should be detailed and artistic, describing the visual elements, mood, and character traits.
+The tags should include character name, style, pose, emotions, colors, and relevant themes.
+
+Format as valid JSON only, no other text.`,
+    });
+    
+    const metadataText = response.text ?? '{}';
+    
+    try {
+      const metadata = JSON.parse(metadataText);
+      return {
+        title: metadata.title || `${characterId} - Variation ${variation}`,
+        description: metadata.description || `A ${style} style artwork featuring ${characterId} in a dynamic pose.`,
+        tags: Array.isArray(metadata.tags) ? metadata.tags : [characterId, style, 'character', 'ai-generated']
+      };
+    } catch (parseError) {
+      console.error("Error parsing Gemini metadata response:", parseError);
+      // Fallback metadata
+      return {
+        title: `${characterId} - ${style} Style`,
+        description: `A stunning ${style} style artwork featuring ${characterId} with intricate details and dynamic composition.`,
+        tags: [characterId, style, 'character', 'ai-generated', 'artwork', 'digital']
+      };
+    }
+  } catch (error) {
+    console.error("Gemini metadata generation error:", error);
+    // Fallback metadata
+    return {
+      title: `${characterId} - Variation ${variation}`,
+      description: `An AI-generated ${style} style image of ${characterId} with unique artistic interpretation.`,
+      tags: [characterId, style, 'character', 'ai-generated']
+    };
+  }
+}
+
 // Generate character pack using Runware
 async function generateCharacterPack(packId: number, characters: string[], settings: any) {
   try {
@@ -153,10 +210,19 @@ async function generateCharacterPack(packId: number, characters: string[], setti
       // Handle both single image and multiple images response
       const images = result.images || (result.image ? [result.image] : []);
 
-      // Save generated images
+      // Save generated images with AI-generated metadata
       for (let i = 0; i < images.length; i++) {
         const imageData = images[i] as any;
         const imageUrl = imageData?.url || imageData?.base64 || `https://via.placeholder.com/1024x1024/8B5CF6/FFFFFF?text=${characterId}`;
+        
+        // Generate metadata for this image using Gemini AI
+        const metadata = await generateImageMetadata(
+          characterId, 
+          enhancedPrompt || basePrompt, 
+          i + 1, 
+          settings.style || "anime"
+        );
+        
         await storage.createGeneratedImage({
           packId,
           characterId,
@@ -164,6 +230,9 @@ async function generateCharacterPack(packId: number, characters: string[], setti
           variation: i + 1,
           prompt: basePrompt,
           enhancedPrompt: enhancedPrompt || null,
+          title: metadata.title,
+          description: metadata.description,
+          tags: metadata.tags,
         });
       }
     }

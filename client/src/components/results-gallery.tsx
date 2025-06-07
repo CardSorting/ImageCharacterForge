@@ -17,6 +17,9 @@ interface GeneratedImage {
   variation: number;
   prompt: string;
   enhancedPrompt?: string;
+  title?: string;
+  description?: string;
+  tags?: string[];
 }
 
 interface CharacterPack {
@@ -184,28 +187,87 @@ export default function ResultsGallery({ packId, onGenerateNew }: ResultsGallery
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {images.map((image) => (
-                    <div key={image.id} className="relative group">
-                      <img 
-                        src={image.imageUrl} 
-                        alt={`Generated ${characterId} variation ${image.variation}`} 
-                        className="w-full aspect-square object-cover rounded-lg" 
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-lg transition-all flex items-center justify-center">
-                        <Button 
-                          onClick={() => handleDownloadImage(image)}
-                          className="bg-white text-black hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all"
-                          size="sm"
-                        >
-                          <i className="fas fa-download mr-1"></i>Download
-                        </Button>
+                    <Card key={image.id} className="bg-slate-700 border-slate-600 overflow-hidden">
+                      <div className="relative group">
+                        <img 
+                          src={image.imageUrl} 
+                          alt={image.title || `Generated ${characterId} variation ${image.variation}`} 
+                          className="w-full aspect-square object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
+                          <Button 
+                            onClick={() => handleDownloadImage(image)}
+                            className="bg-white text-black hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all"
+                            size="sm"
+                          >
+                            <i className="fas fa-download mr-1"></i>Download
+                          </Button>
+                        </div>
+                        <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs">
+                          1024×1024
+                        </div>
+                        <div className="absolute top-2 left-2 bg-primary bg-opacity-90 text-white px-2 py-1 rounded text-xs font-medium">
+                          #{image.variation}
+                        </div>
                       </div>
-                      <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                        1024×1024
-                      </div>
-                      <p className="text-xs text-slate-400 mt-2 text-center">Variation {image.variation}</p>
-                    </div>
+                      <CardContent className="p-4">
+                        <div className="mb-3">
+                          <h4 className="text-white font-semibold text-sm mb-1 line-clamp-1">
+                            {image.title || `${characterId} - Variation ${image.variation}`}
+                          </h4>
+                          <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
+                            {image.description || `AI-generated artwork featuring ${characterId} with unique artistic interpretation.`}
+                          </p>
+                        </div>
+                        
+                        {image.tags && image.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {image.tags.slice(0, 4).map((tag, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="secondary" 
+                                className="bg-slate-600 text-slate-200 text-xs px-2 py-0.5"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                            {image.tags.length > 4 && (
+                              <Badge 
+                                variant="secondary" 
+                                className="bg-slate-600 text-slate-200 text-xs px-2 py-0.5"
+                              >
+                                +{image.tags.length - 4}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 text-xs text-slate-500">
+                            <i className="fas fa-robot"></i>
+                            <span>AI Generated</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-400 hover:text-white h-8 w-8 p-0"
+                            >
+                              <i className="fas fa-heart text-xs"></i>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-400 hover:text-white h-8 w-8 p-0"
+                            >
+                              <i className="fas fa-share text-xs"></i>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </CardContent>
