@@ -225,8 +225,10 @@ IMPORTANT: Return only the JSON object, no other text or formatting.`,
 
 // Generate character pack using Runware
 async function generateCharacterPack(packId: number, characters: string[], settings: any) {
+  console.log(`[generateCharacterPack] Starting generation for pack ${packId}`);
   try {
     await storage.updateCharacterPackStatus(packId, "generating");
+    console.log(`[generateCharacterPack] Updated status to generating for pack ${packId}`);
     
     const characterPrompts = {
       naruto: "orange ninja outfit, spiky blonde hair, determined expression, dynamic action pose",
@@ -268,16 +270,53 @@ async function generateCharacterPack(packId: number, characters: string[], setti
         },
       });
 
-      console.log(`Runware API response for ${characterId}:`, JSON.stringify(result, null, 2));
+      console.log(`Runware API response structure:`, {
+        images: result.images ? `Array with ${result.images.length} items` : 'undefined',
+        warnings: result.warnings ? `Array with ${result.warnings.length} items` : 'undefined',
+        responses: result.responses ? `Array with ${result.responses.length} items` : 'undefined'
+      });
 
-      // Handle both single image and multiple images response
-      const images = result.images || (result.image ? [result.image] : []);
-      console.log(`Extracted ${images.length} images for ${characterId}`);
+      // Extract image URLs from Runware response
+      const imageUrls: string[] = [];
+      
+      // Check for direct image array in result
+      if (result.images && Array.isArray(result.images)) {
+        for (const img of result.images) {
+          if (img && typeof img === 'object' && 'url' in img) {
+            imageUrls.push(img.url as string);
+          }
+        }
+      }
+      
+      // Check warnings for imageURL (Runware specific)
+      if (result.warnings && Array.isArray(result.warnings)) {
+        for (const warning of result.warnings) {
+          if (warning && typeof warning === 'object' && 'message' in warning) {
+            try {
+              const message = (warning as any).message;
+              if (typeof message === 'string' && message.includes('Response data:')) {
+                const responseData = JSON.parse(message.replace('Response data: ', ''));
+                if (Array.isArray(responseData)) {
+                  for (const item of responseData) {
+                    if (item && typeof item === 'object' && 'imageURL' in item) {
+                      imageUrls.push(item.imageURL as string);
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              console.log('Failed to parse warning message');
+            }
+          }
+        }
+      }
+
+      console.log(`Extracted ${imageUrls.length} image URLs for ${characterId}:`, imageUrls);
 
       // Save generated images with AI-generated metadata
-      for (let i = 0; i < images.length; i++) {
-        const imageData = images[i] as any;
-        const imageUrl = imageData?.url || imageData?.base64 || `https://via.placeholder.com/1024x1024/8B5CF6/FFFFFF?text=${characterId}`;
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
+        console.log(`Processing image ${i + 1} for ${characterId} with URL:`, imageUrl);
         
         // Generate metadata for this image using Gemini AI
         const metadata = await generateImageMetadata(
