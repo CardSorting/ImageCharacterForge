@@ -186,9 +186,29 @@ export default function Home() {
                   <span>Runware</span>
                 </div>
               </div>
-              <Button className="bg-primary hover:bg-primary/80">
-                <i className="fas fa-download mr-2"></i>Gallery
-              </Button>
+              
+              {user && (
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.profileImageUrl || undefined} />
+                    <AvatarFallback>
+                      {user.firstName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden sm:block text-sm">
+                    <p className="text-white">{user.firstName || 'User'}</p>
+                    <p className="text-slate-400 text-xs">{user.email}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = '/api/logout'}
+                    className="border-slate-600 hover:bg-slate-700"
+                  >
+                    Logout
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
