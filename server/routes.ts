@@ -75,7 +75,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(pack);
 
       // Start generation process asynchronously
-      generateCharacterPack(pack.id, characters as string[], settings as any);
+      console.log(`Starting generation for pack ${pack.id} with characters:`, characters);
+      generateCharacterPack(pack.id, characters as string[], settings as any)
+        .catch(error => console.error(`Failed to generate pack ${pack.id}:`, error));
       
     } catch (error) {
       console.error("Error creating character pack:", error);
@@ -250,6 +252,8 @@ async function generateCharacterPack(packId: number, characters: string[], setti
       );
 
       // Generate images with Runware
+      console.log(`Generating ${settings.imagesPerCharacter || 4} images for ${characterId} with prompt: ${enhancedPrompt}`);
+      
       const result = await generateImage({
         model: runware.image('runware:101@1'),
         prompt: enhancedPrompt,
@@ -264,8 +268,11 @@ async function generateCharacterPack(packId: number, characters: string[], setti
         },
       });
 
+      console.log(`Runware API response for ${characterId}:`, JSON.stringify(result, null, 2));
+
       // Handle both single image and multiple images response
       const images = result.images || (result.image ? [result.image] : []);
+      console.log(`Extracted ${images.length} images for ${characterId}`);
 
       // Save generated images with AI-generated metadata
       for (let i = 0; i < images.length; i++) {
@@ -297,6 +304,7 @@ async function generateCharacterPack(packId: number, characters: string[], setti
     await storage.updateCharacterPackStatus(packId, "completed", new Date());
   } catch (error) {
     console.error("Generation error:", error);
+    console.error("Full error details:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     await storage.updateCharacterPackStatus(packId, "failed");
   }
 }
