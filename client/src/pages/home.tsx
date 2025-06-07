@@ -15,8 +15,10 @@ import { useAuth } from "@/hooks/useAuth";
 import CharacterSelection from "@/components/character-selection";
 import GenerationProgress from "@/components/generation-progress";
 import ResultsGallery from "@/components/results-gallery";
+import { Calendar, Clock, Image, Zap } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-type ViewState = 'selection' | 'customization' | 'generating' | 'results';
+type ViewState = 'selection' | 'customization' | 'generating' | 'results' | 'gallery';
 
 interface GenerationSettings {
   style: string;
