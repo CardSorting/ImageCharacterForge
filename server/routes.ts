@@ -29,25 +29,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get character pack history
-  app.get("/api/character-packs", async (req, res) => {
+  // Get character pack history (protected route)
+  app.get("/api/character-packs", isAuthenticated, async (req: any, res) => {
     try {
-      // For demo purposes, using userId = 1
-      const packs = await storage.getCharacterPacksByUser(1);
+      const userId = req.user.claims.sub;
+      const packs = await storage.getCharacterPacksByUser(userId);
       res.json(packs);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch character packs" });
     }
   });
 
-  // Get character pack with images
-  app.get("/api/character-packs/:id", async (req, res) => {
+  // Get character pack with images (protected route)
+  app.get("/api/character-packs/:id", isAuthenticated, async (req: any, res) => {
     try {
       const packId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
       const pack = await storage.getCharacterPack(packId);
       
       if (!pack) {
         return res.status(404).json({ error: "Character pack not found" });
+      }
+
+      // Ensure user owns this pack
+      if (pack.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
       }
 
       const images = await storage.getGeneratedImagesByPack(packId);
@@ -57,17 +63,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create and generate character pack
-  app.post("/api/character-packs", async (req, res) => {
+  // Create and generate character pack (protected route)
+  app.post("/api/character-packs", isAuthenticated, async (req: any, res) => {
     try {
       const { name, characters, settings } = insertCharacterPackSchema.parse(req.body);
+      const userId = req.user.claims.sub;
       
       // Create character pack
       const pack = await storage.createCharacterPack({
         name,
         characters,
         settings,
-        userId: 1, // For demo purposes
+        userId,
       });
 
       res.json(pack);
