@@ -116,41 +116,80 @@ async function generateImageMetadata(characterId: string, prompt: string, variat
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash",
-      contents: `Generate metadata for an AI-generated character image with the following details:
+      contents: `Generate metadata for an AI-generated character image. Respond with ONLY valid JSON, no markdown formatting or code blocks.
 
 Character: ${characterId}
 Prompt: ${prompt}
 Style: ${style}
 Variation: ${variation}
 
-Please provide a JSON response with:
-1. "title": A compelling, descriptive title (max 60 characters)
-2. "description": A detailed description of the image (100-150 words)
-3. "tags": An array of 8-12 relevant tags for categorization and search
+Return JSON with these exact fields:
+{
+  "title": "compelling descriptive title (max 60 chars)",
+  "description": "detailed artistic description (100-150 words)",
+  "tags": ["array", "of", "8-12", "relevant", "tags"]
+}
 
-The title should be engaging and describe the character's pose, expression, or action.
-The description should be detailed and artistic, describing the visual elements, mood, and character traits.
-The tags should include character name, style, pose, emotions, colors, and relevant themes.
+Title: engaging, describes pose/expression/action
+Description: artistic, visual elements, mood, character traits
+Tags: character name, style, pose, emotions, colors, themes
 
-Format as valid JSON only, no other text.`,
+IMPORTANT: Return only the JSON object, no other text or formatting.`,
     });
     
     const metadataText = response.text ?? '{}';
     
     try {
-      const metadata = JSON.parse(metadataText);
-      return {
-        title: metadata.title || `${characterId} - Variation ${variation}`,
-        description: metadata.description || `A ${style} style artwork featuring ${characterId} in a dynamic pose.`,
-        tags: Array.isArray(metadata.tags) ? metadata.tags : [characterId, style, 'character', 'ai-generated']
-      };
+      // Comprehensive text cleaning for various markdown formats
+      let cleanedText = metadataText;
+      
+      // Remove markdown code blocks (backticks)
+      cleanedText = cleanedText.replace(/```(?:json)?\s*/gi, '');
+      cleanedText = cleanedText.replace(/```\s*/g, '');
+      
+      // Extract JSON object from the response
+      const jsonPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+      const jsonMatches = cleanedText.match(jsonPattern);
+      
+      if (jsonMatches && jsonMatches.length > 0) {
+        // Use the largest JSON object found
+        cleanedText = jsonMatches.reduce((longest, current) => 
+          current.length > longest.length ? current : longest
+        );
+      }
+      
+      // Clean up any remaining formatting
+      cleanedText = cleanedText.trim();
+      
+      const metadata = JSON.parse(cleanedText);
+      
+      // Validate and clean the parsed data
+      const title = typeof metadata.title === 'string' ? metadata.title.substring(0, 60) : `${characterId} - Variation ${variation}`;
+      const description = typeof metadata.description === 'string' ? metadata.description : `A ${style} style artwork featuring ${characterId} in a dynamic pose.`;
+      const tags = Array.isArray(metadata.tags) ? metadata.tags.filter(tag => typeof tag === 'string') : [characterId, style, 'character', 'ai-generated'];
+      
+      return { title, description, tags };
+      
     } catch (parseError) {
-      console.error("Error parsing Gemini metadata response:", parseError);
-      // Fallback metadata
+      console.log("Gemini response parsing failed, using regex extraction");
+      
+      // Regex-based extraction as fallback
+      const titleMatch = metadataText.match(/"title":\s*"([^"]*?)"/i);
+      const descMatch = metadataText.match(/"description":\s*"([^"]*?)"/i);
+      const tagsSection = metadataText.match(/"tags":\s*\[(.*?)\]/si);
+      
+      let extractedTags = [characterId, style, 'character', 'ai-generated'];
+      if (tagsSection) {
+        const tagMatches = tagsSection[1].match(/"([^"]*?)"/g);
+        if (tagMatches) {
+          extractedTags = tagMatches.map(tag => tag.replace(/"/g, '').trim()).filter(tag => tag.length > 0);
+        }
+      }
+      
       return {
-        title: `${characterId} - ${style} Style`,
-        description: `A stunning ${style} style artwork featuring ${characterId} with intricate details and dynamic composition.`,
-        tags: [characterId, style, 'character', 'ai-generated', 'artwork', 'digital']
+        title: titleMatch ? titleMatch[1].substring(0, 60) : `${characterId} - ${style} Style`,
+        description: descMatch ? descMatch[1] : `A stunning ${style} style artwork featuring ${characterId} with intricate details and dynamic composition.`,
+        tags: extractedTags.length > 0 ? extractedTags : [characterId, style, 'character', 'ai-generated', 'artwork']
       };
     }
   } catch (error) {
